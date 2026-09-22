@@ -2,6 +2,7 @@ name: macos
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -12,26 +13,30 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-      - name: Generate icons
-        run: python3 scripts/generate_icons.py
-      - name: Install tauri-cli
-        run: cargo install tauri-cli --version "^2"
       - name: Build
-        working-directory: src-tauri
-        run: cargo tauri build --bundles app,dmg
-      - name: Pack app
+        run: scripts/build-app.sh
+      - name: Pack
         run: |
-          ditto -c -k --keepParent \
-            src-tauri/target/release/bundle/macos/Vigil.app \
-            Vigil.app.zip
+          ditto -c -k --keepParent build/Vigil.app Vigil.app.zip
+          hdiutil create -volname Vigil -srcfolder build/Vigil.app -ov -format UDZO Vigil.dmg
       - uses: actions/upload-artifact@v4
+        if: github.ref_type != 'tag'
         with:
           name: Vigil-macos
           if-no-files-found: error
           path: |
             Vigil.app.zip
-            src-tauri/target/release/bundle/dmg/*.dmg
+            Vigil.dmg
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: Vigil ${{ github.ref_name }}
+          files: |
+            Vigil.app.zip
+            Vigil.dmg
+          body: |
+            Apple Silicon，macOS 13 或更新。未经过 Apple 公证。
+
+            下载 [Vigil.app.zip](https://github.com/hhh111119/vigil-lock/releases/download/${{ github.ref_name }}/Vigil.app.zip)，解压后把 `Vigil.app` 拖进「应用程序」。第一次打开：按住 Control 点图标 → 打开。
+
+            安装说明见仓库里的 INSTALL.md。

@@ -7,7 +7,7 @@ import struct
 import zlib
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1] / "src-tauri" / "icons"
+ROOT = Path(__file__).resolve().parents[1] / "Resources"
 
 
 def write_png(path: Path, size: int, rgba_at) -> bytes:
@@ -59,15 +59,9 @@ def icns_file(entries: list[tuple[bytes, bytes]]) -> bytes:
 def main() -> None:
     ROOT.mkdir(parents=True, exist_ok=True)
     pngs: dict[int, bytes] = {}
-    mapping = {
-        32: "32x32.png",
-        128: "128x128.png",
-        256: "128x128@2x.png",
-        1024: "icon.png",
-    }
-    for size, name in mapping.items():
-        pngs[size] = write_png(ROOT / name, size, rgba)
-    pngs[512] = write_png(ROOT / "512x512.png", 512, rgba)
+    for size in (32, 128, 256, 512, 1024):
+        pngs[size] = write_png(ROOT / f".icon-{size}.png", size, rgba)
+        (ROOT / f".icon-{size}.png").unlink()
     (ROOT / "icon.icns").write_bytes(
         icns_file(
             [
