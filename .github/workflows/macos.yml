@@ -1,0 +1,37 @@
+name: macos
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Generate icons
+        run: python3 scripts/generate_icons.py
+      - name: Install tauri-cli
+        run: cargo install tauri-cli --version "^2"
+      - name: Build
+        working-directory: src-tauri
+        run: cargo tauri build --bundles app,dmg
+      - name: Pack app
+        run: |
+          ditto -c -k --keepParent \
+            src-tauri/target/release/bundle/macos/Vigil.app \
+            Vigil.app.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Vigil-macos
+          if-no-files-found: error
+          path: |
+            Vigil.app.zip
+            src-tauri/target/release/bundle/dmg/*.dmg

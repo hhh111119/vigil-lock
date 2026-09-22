@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vigil</title>
+    <style>
+      :root {
+        --bg: #0a0a0b;
+        --surface: #121214;
+        --surface-2: #1a1a1e;
+        --fg: #f4f4f5;
+        --muted: #a1a1aa;
+        --subtle: #71717a;
+        --accent: #c8ccd4;
+        --accent-fg: #0a0a0b;
+        --danger: #c45c5c;
+        --radius: 12px;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, "Figtree", "SF Pro Text", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      body {
+        padding: 56px 28px 28px;
+      }
+      .mark {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--surface-2);
+        box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+      }
+      .brand { display: flex; gap: 12px; align-items: center; }
+      .brand b { display: block; font-size: 14px; font-weight: 600; }
+      .brand span { display: block; font-size: 12px; color: var(--subtle); margin-top: 2px; }
+      p { line-height: 1.55; }
+      .lede { margin: 24px 0 0; color: var(--muted); font-size: 14px; }
+      label { display: block; font-size: 12px; color: var(--muted); margin: 16px 0 8px; font-weight: 500; }
+      input, textarea {
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--fg);
+        box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+        padding: 0 12px;
+        height: 44px;
+        font: inherit;
+        outline: none;
+      }
+      textarea { height: 80px; padding: 10px 12px; resize: none; }
+      input:focus, textarea:focus { box-shadow: 0 0 0 1px rgba(200,204,212,.55); }
+      button {
+        font: inherit;
+        cursor: pointer;
+        border: 0;
+        border-radius: 8px;
+        height: 48px;
+        padding: 0 16px;
+        background: var(--accent);
+        color: var(--accent-fg);
+        font-weight: 600;
+        width: 100%;
+      }
+      button.secondary {
+        background: var(--surface-2);
+        color: var(--fg);
+        box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+        height: 44px;
+        font-weight: 500;
+      }
+      button:disabled { opacity: .4; cursor: default; }
+      button:active:not(:disabled) { transform: scale(.96); }
+      .lock { margin-top: 28px; }
+      .hint { text-align: center; color: var(--subtle); font-size: 12px; margin-top: 12px; }
+      .error { color: var(--danger); font-size: 12px; margin-top: 10px; }
+      .row {
+        margin-top: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        background: var(--surface-2);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      .row p { margin: 0; font-size: 14px; font-weight: 500; }
+      .row small { display: block; color: var(--subtle); font-size: 12px; font-weight: 400; margin-top: 2px; }
+      .switch {
+        width: 44px;
+        height: 24px;
+        border-radius: 999px;
+        background: #2a2a2e;
+        position: relative;
+        box-shadow: 0 0 0 1px rgba(255,255,255,.1);
+        flex: none;
+      }
+      .switch.on { background: var(--accent); }
+      .switch i {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--fg);
+        transition: transform 150ms ease;
+      }
+      .switch.on i { transform: translateX(20px); background: var(--accent-fg); }
+      .count { text-align: right; color: var(--subtle); font-size: 11px; font-variant-numeric: tabular-nums; margin-top: 6px; }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 48 48" fill="none">
+          <circle cx="24" cy="24" r="18.5" stroke="#c8ccd4" stroke-width="1.25"/>
+          <circle cx="24" cy="24" r="5.5" fill="#c8ccd4"/>
+        </svg>
+      </div>
+      <div>
+        <b>Vigil</b>
+        <span>守夜 · 锁屏不停机</span>
+      </div>
+    </div>
+
+    <section id="setup">
+      <p class="lede">先设一个解锁密码。只存在这台 Mac 上，不是登录密码，也不上传。</p>
+      <label for="pw1">解锁密码</label>
+      <input id="pw1" type="password" autocomplete="new-password" />
+      <label for="pw2">再输入一次</label>
+      <input id="pw2" type="password" autocomplete="new-password" />
+      <p class="error" id="setup-error"></p>
+      <button class="lock" id="setup-btn">开始使用</button>
+    </section>
+
+    <section id="ready" class="hidden">
+      <button class="lock" id="lock-btn">立即锁定</button>
+      <p class="hint">菜单栏也可以锁定 · 密码存在本机</p>
+      <label for="message">守夜留言</label>
+      <textarea id="message" maxlength="80"></textarea>
+      <div class="count" id="count">0/80</div>
+      <div class="row">
+        <div>
+          <p>屏幕常亮</p>
+          <small>锁定期间阻止空闲休眠</small>
+        </div>
+        <button class="switch on" id="awake" type="button" aria-label="屏幕常亮"><i></i></button>
+      </div>
+      <label for="pw-new">更改密码</label>
+      <input id="pw-new" type="password" autocomplete="new-password" placeholder="留空表示不更改" />
+      <button class="secondary" id="save-pw" style="margin-top:10px">保存密码</button>
+      <p class="error" id="ready-error"></p>
+    </section>
+
+    <script>
+      const invoke = window.__TAURI__.core.invoke;
+      const setup = document.getElementById("setup");
+      const ready = document.getElementById("ready");
+      const message = document.getElementById("message");
+      const count = document.getElementById("count");
+      const awake = document.getElementById("awake");
+
+      function showReady(settings) {
+        setup.classList.add("hidden");
+        ready.classList.remove("hidden");
+        message.value = settings.message || "";
+        count.textContent = `${message.value.length}/80`;
+        awake.classList.toggle("on", settings.keep_awake);
+      }
+
+      async function boot() {
+        const settings = await invoke("get_settings");
+        if (settings.has_password) showReady(settings);
+      }
+
+      document.getElementById("setup-btn").onclick = async () => {
+        const a = document.getElementById("pw1").value;
+        const b = document.getElementById("pw2").value;
+        const err = document.getElementById("setup-error");
+        err.textContent = "";
+        if (a.length < 4) { err.textContent = "至少 4 个字符"; return; }
+        if (a !== b) { err.textContent = "两次输入不一致"; return; }
+        try {
+          await invoke("setup_password", { password: a });
+          showReady(await invoke("get_settings"));
+        } catch (e) {
+          err.textContent = String(e);
+        }
+      };
+
+      document.getElementById("lock-btn").onclick = async () => {
+        const err = document.getElementById("ready-error");
+        err.textContent = "";
+        try {
+          await invoke("lock");
+        } catch (e) {
+          err.textContent = String(e);
+        }
+      };
+
+      message.addEventListener("input", async () => {
+        count.textContent = `${message.value.length}/80`;
+        await invoke("set_message", { message: message.value });
+      });
+
+      awake.onclick = async () => {
+        const next = !awake.classList.contains("on");
+        awake.classList.toggle("on", next);
+        await invoke("set_keep_awake", { value: next });
+      };
+
+      document.getElementById("save-pw").onclick = async () => {
+        const err = document.getElementById("ready-error");
+        const value = document.getElementById("pw-new").value;
+        err.textContent = "";
+        if (!value) return;
+        try {
+          await invoke("setup_password", { password: value });
+          document.getElementById("pw-new").value = "";
+        } catch (e) {
+          err.textContent = String(e);
+        }
+      };
+
+      boot();
+    </script>
+  </body>
+</html>

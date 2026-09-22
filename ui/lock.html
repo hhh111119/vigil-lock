@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vigil</title>
+    <style>
+      :root {
+        --bg: #0a0a0b;
+        --fg: #f4f4f5;
+        --muted: #a1a1aa;
+        --subtle: #71717a;
+        --accent: #c8ccd4;
+        --accent-fg: #0a0a0b;
+        --danger: #c45c5c;
+        --surface-2: #1a1a1e;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: linear-gradient(180deg, #0a0a0b 0%, #101014 100%);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+        padding: 32px 40px;
+      }
+      header, footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+      header .live { display: flex; align-items: center; gap: 8px; letter-spacing: .14em; text-transform: uppercase; }
+      .dot {
+        width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+        animation: pulse 2.4s ease-in-out infinite;
+      }
+      @keyframes pulse { 50% { opacity: .35; } }
+      .elapsed { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .clock {
+        font-family: "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+        font-size: clamp(64px, 12vw, 112px);
+        letter-spacing: -0.04em;
+        line-height: 1;
+        font-weight: 500;
+      }
+      .date { margin-top: 16px; color: var(--muted); font-size: 14px; }
+      .message { margin-top: 40px; max-width: 28rem; text-align: center; font-size: 16px; }
+      form { width: min(100%, 20rem); margin-top: 48px; }
+      input {
+        width: 100%;
+        height: 44px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--fg);
+        box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+        padding: 0 12px;
+        font: inherit;
+        outline: none;
+      }
+      input:focus { box-shadow: 0 0 0 1px rgba(200,204,212,.55); }
+      button {
+        margin-top: 12px;
+        width: 100%;
+        height: 44px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--accent);
+        color: var(--accent-fg);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled { opacity: .4; cursor: default; }
+      .error { min-height: 18px; margin-top: 12px; text-align: center; color: var(--danger); font-size: 12px; }
+      footer { justify-content: center; text-align: center; }
+      @media (prefers-reduced-motion: reduce) {
+        .dot { animation: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="live"><span class="dot"></span>Vigil · 守夜中</div>
+      <div class="elapsed" id="elapsed">00m 00s</div>
+    </header>
+    <main>
+      <svg width="40" height="40" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <circle cx="24" cy="24" r="18.5" stroke="#c8ccd4" stroke-width="1.25"/>
+        <circle cx="24" cy="24" r="5.5" fill="#c8ccd4"/>
+      </svg>
+      <div class="clock" id="clock">00:00</div>
+      <div class="date" id="date"></div>
+      <p class="message" id="message">正在工作，请勿触碰。</p>
+      <form id="form">
+        <input id="password" type="password" autocomplete="current-password" placeholder="输入密码解锁" autofocus />
+        <button type="submit" id="submit">解锁</button>
+        <p class="error" id="error"></p>
+      </form>
+    </main>
+    <footer id="footer">进程继续运行 · 屏幕不会休眠</footer>
+    <script>
+      const invoke = window.__TAURI__.core.invoke;
+      const clock = document.getElementById("clock");
+      const date = document.getElementById("date");
+      const elapsed = document.getElementById("elapsed");
+      const message = document.getElementById("message");
+      const footer = document.getElementById("footer");
+      const password = document.getElementById("password");
+      const submit = document.getElementById("submit");
+      const error = document.getElementById("error");
+      let lockedAt = Date.now();
+      let waitUntil = 0;
+
+      function pad(n) { return String(n).padStart(2, "0"); }
+      function fmtDuration(ms) {
+        const t = Math.max(0, Math.floor(ms / 1000));
+        const h = Math.floor(t / 3600);
+        const m = Math.floor((t % 3600) / 60);
+        const s = t % 60;
+        return h > 0 ? `${h}h ${pad(m)}m ${pad(s)}s` : `${pad(m)}m ${pad(s)}s`;
+      }
+      function tick() {
+        const now = new Date();
+        clock.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        date.textContent = new Intl.DateTimeFormat("zh-CN", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        }).format(now);
+        elapsed.textContent = fmtDuration(now.getTime() - lockedAt);
+        const left = waitUntil - Date.now();
+        if (left > 0) {
+          submit.disabled = true;
+          submit.textContent = `请稍候 ${Math.ceil(left / 1000)}s`;
+        } else if (submit.disabled && waitUntil) {
+          submit.disabled = false;
+          submit.textContent = "解锁";
+          waitUntil = 0;
+        }
+      }
+
+      document.addEventListener("contextmenu", (e) => e.preventDefault());
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" || e.key === "F11") e.preventDefault();
+      }, true);
+
+      document.getElementById("form").onsubmit = async (e) => {
+        e.preventDefault();
+        if (Date.now() < waitUntil) return;
+        error.textContent = "";
+        const result = await invoke("unlock", { password: password.value });
+        password.value = "";
+        if (result.ok) return;
+        if (result.wait_ms > 0) {
+          waitUntil = Date.now() + result.wait_ms;
+          error.textContent = "密码不正确";
+        } else {
+          error.textContent = "密码不正确";
+        }
+        password.focus();
+      };
+
+      (async () => {
+        const meta = await invoke("lock_meta");
+        message.textContent = meta.message || "正在工作，请勿触碰。";
+        lockedAt = meta.locked_at || Date.now();
+        footer.textContent = meta.keep_awake
+          ? "进程继续运行 · 屏幕不会休眠"
+          : "进程继续运行 · 未阻止休眠";
+        tick();
+      })();
+      setInterval(tick, 250);
+    </script>
+  </body>
+</html>

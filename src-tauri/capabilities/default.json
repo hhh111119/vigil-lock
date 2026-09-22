@@ -1,0 +1,12 @@
+{
+  "identifier": "default",
+  "description": "Vigil windows",
+  "windows": ["main", "lock-*"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-close"
+  ]
+}
